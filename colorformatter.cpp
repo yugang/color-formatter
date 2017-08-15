@@ -9,8 +9,13 @@
 #include <unistd.h>
 #include <getopt.h>
 
-#define INPUT_FORMAT_NUM 3
-#define OUTPUT_FORMAT_NUM 3
+#define INPUT_FORMAT_NUM 10
+#define OUTPUT_FORMAT_NUM 10
+
+FILE *input_fd = NULL;
+FILE *output_fd = NULL;
+char *output_buf = NULL;
+unsigned long output_buf_size = 0;
 
 struct output_input_formats {
   char output_format[64];
@@ -18,9 +23,15 @@ struct output_input_formats {
 };
 
 struct output_input_formats output_input_mapping[OUTPUT_FORMAT_NUM] = {
-    {"yv12", "yuv411"},
-    {"y8", {"yuv444", "yuv411", "yuv420"}},
-    {"y16", {"yuv444", "yuv411", "yuv420"}}};
+    {"yv12", {"yuv420p"}},
+    {"y8", {"yuv420p"}},
+    {"ycbcr_420_888", {"nv12"}},
+    {"ycbcr_422_sp", {"nv16"}},
+    {"ycbcr_420_sp", {"nv21"}},
+    {"ycbcr_444_888", {"yuv444p"}},
+    {"nv12_linear_cam_intel", {"nv12"}},
+    {"nv12_y_tiled_intel", {"nv12"}},
+    {"y16", {"yuv420p16le"}}};
 
 char input_raw[1024];
 char output_raw[1024];
@@ -121,7 +132,280 @@ static void parse_args(int argc, char *argv[]) {
   }
 }
 
+bool generate_nv16_output_buf() {
+  unsigned int y_pitch = width;
+  unsigned int y_height = height;
+  unsigned int c_pitch = y_pitch;
+  unsigned int c_height = y_height;
+
+  printf("Plane0 Pitch=\t\t%d\nPlane0 Height=\t\t%d\nPlane1 "
+         "Pitch=\t\t%d\nPlane1 Height=\t\t%d\n",
+         y_pitch, y_height, c_pitch, c_height);
+  output_buf_size = y_pitch * y_height + c_pitch * c_height;
+  output_buf = (char *)malloc(output_buf_size);
+  memset(output_buf, 0, output_buf_size);
+  printf("Total output raw frame size = %ld\n", output_buf_size);
+
+  fseek(input_fd, 0, SEEK_SET);
+  char *p_output_buf = output_buf;
+  unsigned int read_height = 0;
+  while (read_height < y_height) {
+    long line_read = fread(p_output_buf, 1, width, input_fd);
+    if (line_read != width) {
+      printf("Failed to read resource file\n");
+      return false;
+    }
+    p_output_buf += y_pitch;
+    read_height++;
+  }
+
+  read_height = 0;
+  while (read_height < c_height) {
+    long line_read = fread(p_output_buf, 1, width, input_fd);
+    if (line_read != width) {
+      printf("Failed to read resource file\n");
+      return false;
+    }
+    p_output_buf += c_pitch;
+    read_height++;
+  }
+  return true;
+}
+
+bool generate_nv12_ytiledintel_output_buf() {
+  unsigned int y_pitch = width % 128 ? (128 - width % 128 + width) : width;
+  unsigned int y_height = height;
+  unsigned int c_pitch = y_pitch;
+  unsigned int c_height = y_height / 2;
+  unsigned int c_v_stride =
+      c_height % 64 ? (64 - c_height % 64 + c_height) : c_height;
+  ;
+  unsigned int y_v_stride = height % 64 ? (64 - height % 64 + height) : height;
+
+  printf("Plane0 Pitch=\t\t%d\nPlane0 Stride=\t\t%d\nPlane1 "
+         "Pitch=\t\t%d\nPlane1 Stride=\t\t%d\n",
+         y_pitch, y_v_stride, c_pitch, c_v_stride);
+  output_buf_size = y_pitch * y_v_stride + c_pitch * c_v_stride;
+  output_buf = (char *)malloc(output_buf_size);
+  memset(output_buf, 0, output_buf_size);
+  printf("Total output raw frame size = %ld\n", output_buf_size);
+
+  fseek(input_fd, 0, SEEK_SET);
+  char *p_output_buf = output_buf;
+  unsigned int read_height = 0;
+  while (read_height < y_v_stride) {
+    if (read_height < y_height) {
+      long line_read = fread(p_output_buf, 1, width, input_fd);
+      if (line_read != width) {
+        printf("Failed to read resource file\n");
+        return false;
+      }
+    }
+    p_output_buf += y_pitch;
+    read_height++;
+  }
+
+  read_height = 0;
+  while (read_height < c_v_stride) {
+    if (read_height < c_height) {
+      long line_read = fread(p_output_buf, 1, width, input_fd);
+      if (line_read != width) {
+        printf("Failed to read resource file\n");
+        return false;
+      }
+    }
+    p_output_buf += c_pitch;
+    read_height++;
+  }
+  return true;
+}
+
+bool generate_nv12_output_buf() {
+  unsigned int y_pitch = width % 64 ? (64 - width % 64 + width) : width;
+  unsigned int y_height = height;
+  unsigned int c_pitch = y_pitch;
+  unsigned int c_height = y_height / 2;
+
+  printf("Plane0 Pitch=\t\t%d\nPlane0 Height=\t\t%d\nPlane1 "
+         "Pitch=\t\t%d\nPlane1 Height=\t\t%d\n",
+         y_pitch, y_height, c_pitch, c_height);
+  output_buf_size = y_pitch * y_height + c_pitch * c_height;
+  output_buf = (char *)malloc(output_buf_size);
+  memset(output_buf, 0, output_buf_size);
+  printf("Total output raw frame size = %ld\n", output_buf_size);
+
+  fseek(input_fd, 0, SEEK_SET);
+  char *p_output_buf = output_buf;
+  unsigned int read_height = 0;
+  while (read_height < y_height) {
+    long line_read = fread(p_output_buf, 1, width, input_fd);
+    if (line_read != width) {
+      printf("Failed to read resource file\n");
+      return false;
+    }
+    p_output_buf += y_pitch;
+    read_height++;
+  }
+
+  read_height = 0;
+  while (read_height < c_height) {
+    long line_read = fread(p_output_buf, 1, width, input_fd);
+    if (line_read != width) {
+      printf("Failed to read resource file\n");
+      return false;
+    }
+    p_output_buf += c_pitch;
+    read_height++;
+  }
+  return true;
+}
+
+bool generate_yuv444888_output_buf() {
+  unsigned int y_pitch = width;
+  unsigned int y_height = height;
+  unsigned int c_pitch = y_pitch;
+  unsigned int c_height = y_height;
+
+  printf("Plane0 Pitch=\t\t%d\nPlane0 Height=\t\t%d\nPlane1/2 "
+         "Pitch=\t\t%d\nPlane1/2 Height=\t%d\n",
+         y_pitch, y_height, c_pitch, c_height);
+  output_buf_size = y_pitch * y_height + c_pitch * c_height * 2;
+  output_buf = (char *)malloc(output_buf_size);
+  memset(output_buf, 0, output_buf_size);
+  printf("Total output raw frame size = %ld\n", output_buf_size);
+
+  fseek(input_fd, 0, SEEK_SET);
+  char *p_output_buf = output_buf;
+  unsigned int read_height = 0;
+  while (read_height < y_height) {
+    long line_read = fread(p_output_buf, 1, width, input_fd);
+    if (line_read != width) {
+      printf("Failed to read resource file\n");
+      return false;
+    }
+    p_output_buf += y_pitch;
+    read_height++;
+  }
+
+  read_height = 0;
+  while (read_height < c_height) {
+    long line_read = fread(p_output_buf, 1, width, input_fd);
+    if (line_read != width) {
+      printf("Failed to read resource file\n");
+      return false;
+    }
+    p_output_buf += c_pitch;
+    read_height++;
+  }
+
+  read_height = 0;
+  while (read_height < c_height) {
+    long line_read = fread(p_output_buf, 1, width, input_fd);
+    if (line_read != width) {
+      printf("Failed to read resource file\n");
+      return false;
+    }
+    p_output_buf += c_pitch;
+    read_height++;
+  }
+  return true;
+}
+
+bool generate_yv12_output_buf() {
+  unsigned int y_pitch = width % 64 ? (64 - width % 64 + width) : width;
+  unsigned int y_height = height;
+  unsigned int c_pitch =
+      (width / 2) % 64 ? (64 - (width / 2) % 64 + width / 2) : width / 2;
+  unsigned int c_height = height;
+
+  printf("Plane0 Pitch=\t\t%d\nPlane0 Height=\t\t%d\nPlane1/2 "
+         "Pitch=\t\t%d\nPlane1/2 Height=\t%d\n",
+         y_pitch, y_height, c_pitch, c_height / 2);
+  output_buf_size = y_pitch * y_height + c_pitch * c_height;
+  output_buf = (char *)malloc(output_buf_size);
+  memset(output_buf, 0, output_buf_size);
+  printf("Total output raw frame size = %ld\n", output_buf_size);
+
+  fseek(input_fd, 0, SEEK_SET);
+  char *p_output_buf = output_buf;
+  unsigned int read_height = 0;
+  while (read_height < y_height) {
+    long line_read = fread(p_output_buf, 1, width, input_fd);
+    if (line_read != width) {
+      printf("Failed to read resource file\n");
+      return false;
+    }
+    p_output_buf += y_pitch;
+    read_height++;
+  }
+
+  read_height = 0;
+  while (read_height < height) {
+    long line_read = fread(p_output_buf, 1, width / 2, input_fd);
+    if (line_read != width / 2) {
+      printf("Failed to read resource file\n");
+      return false;
+    }
+    p_output_buf += c_pitch;
+    read_height++;
+  }
+  return true;
+}
+
+bool generate_y8_output_buf() {
+  unsigned int y_pitch = width % 64 ? (64 - width % 64 + width) : width;
+  unsigned int y_height = height;
+
+  printf("Plane0 Pitch=\t\t%d\nPlane0 Height=\t\t%d\n", y_pitch, y_height);
+  output_buf_size = y_pitch * y_height;
+  output_buf = (char *)malloc(output_buf_size);
+  memset(output_buf, 0, output_buf_size);
+  printf("Total output raw frame size = %ld\n", output_buf_size);
+
+  fseek(input_fd, 0, SEEK_SET);
+  char *p_output_buf = output_buf;
+  unsigned int read_height = 0;
+  while (read_height < y_height) {
+    long line_read = fread(p_output_buf, 1, width, input_fd);
+    if (line_read != width) {
+      printf("Failed to read resource file\n");
+      return false;
+    }
+    p_output_buf += y_pitch;
+    read_height++;
+  }
+
+  return true;
+}
+
+bool generate_y16_output_buf() {
+  unsigned int y_pitch = (width % 32 ? (32 - width % 32 + width) : width) * 2;
+  unsigned int y_height = height;
+
+  printf("Plane0 Pitch=\t\t%d\nPlane0 Height=\t\t%d\n", y_pitch, y_height);
+  output_buf_size = y_pitch * y_height;
+  output_buf = (char *)malloc(output_buf_size);
+  memset(output_buf, 0, output_buf_size);
+  printf("Total output raw frame size = %ld\n", output_buf_size);
+
+  fseek(input_fd, 0, SEEK_SET);
+  char *p_output_buf = output_buf;
+  unsigned int read_height = 0;
+  while (read_height < y_height) {
+    long line_read = fread(p_output_buf, 1, width * 2, input_fd);
+    if (line_read != width * 2) {
+      printf("Failed to read resource file\n");
+      return false;
+    }
+    p_output_buf += y_pitch;
+    read_height++;
+  }
+
+  return true;
+}
+
 int main(int argc, char *argv[]) {
+  printf("\n============================================================\n");
   parse_args(argc, argv);
   bool valid_input_output_format = false;
   for (int i_output = 0; i_output < OUTPUT_FORMAT_NUM; i_output++) {
@@ -144,6 +428,64 @@ int main(int argc, char *argv[]) {
   printf("Image Width: \t%d\nImage Height: \t%d\nInput Format:\t%s\nOutput "
          "Format:\t%s\n",
          width, height, input_format, output_format);
+
+  // check file existing
+  // check output file existing
+
+  input_fd = fopen(input_raw, "r");
+  if (!input_fd) {
+    printf("Could not open the resource file");
+    exit(EXIT_FAILURE);
+  }
+
+  output_fd = fopen(output_raw, "w+");
+  if (!output_fd) {
+    printf("Could not open the resource file");
+    exit(EXIT_FAILURE);
+  }
+
+  bool ret = true;
+  if (!strcmp(output_format, "yv12")) {
+    ret = generate_yv12_output_buf();
+  } else if (!strcmp(output_format, "y8")) {
+    ret = generate_y8_output_buf();
+  } else if (!strcmp(output_format, "y16")) {
+    ret = generate_y16_output_buf();
+  } else if (!strcmp(output_format, "ycbcr_420_888") ||
+             !strcmp(output_format, "ycbcr_420_sp") ||
+             !strcmp(output_format, "nv12_linear_cam_intel")) {
+    ret = generate_nv12_output_buf();
+  } else if (!strcmp(output_format, "ycbcr_422_sp")) {
+    ret = generate_nv16_output_buf();
+  } else if (!strcmp(output_format, "ycbcr_444_888")) {
+    ret = generate_yuv444888_output_buf();
+  } else if (!strcmp(output_format, "nv12_y_tiled_intel")) {
+    ret = generate_nv12_ytiledintel_output_buf();
+  }
+
+  if (!ret) {
+    if (!output_buf)
+      free(output_buf);
+    printf("Failed to generate yv12 output buf");
+    fclose(input_fd);
+    fclose(output_fd);
+    exit(EXIT_FAILURE);
+  }
+
+  if (output_buf) {
+    long write_size = fwrite(output_buf, 1, output_buf_size, output_fd);
+    if (write_size != output_buf_size) {
+      printf("Failed to write output file\n");
+      free(output_buf);
+      fclose(input_fd);
+      fclose(output_fd);
+      exit(EXIT_FAILURE);
+    }
+    free(output_buf);
+  }
+
+  fclose(input_fd);
+  fclose(output_fd);
 
   exit(0);
 }
