@@ -26,11 +26,12 @@ struct output_input_formats output_input_mapping[OUTPUT_FORMAT_NUM] = {
     {"yv12", {"yuv420p"}},
     {"y8", {"yuv420p"}},
     {"ycbcr_420_888", {"nv12"}},
-    {"ycbcr_422_sp", {"nv16"}},
+    {"ycbcr_422_sp", {"nv16", "yuv422p"}},
     {"ycbcr_420_sp", {"nv21"}},
     {"ycbcr_444_888", {"yuv444p"}},
     {"nv12_linear_cam_intel", {"nv12"}},
     {"nv12_y_tiled_intel", {"nv12"}},
+    {"ycbcr_422_i", {"yuyv422"}},
     {"y16", {"yuv420p16le"}}};
 
 char input_raw[1024];
@@ -132,7 +133,7 @@ static void parse_args(int argc, char *argv[]) {
   }
 }
 
-bool generate_nv16_output_buf() {
+bool generate_yuv422sp_output_buf() {
   unsigned int y_pitch = width;
   unsigned int y_height = height;
   unsigned int c_pitch = y_pitch;
@@ -352,6 +353,33 @@ bool generate_yv12_output_buf() {
   return true;
 }
 
+bool generate_yuyv422_output_buf() {
+  unsigned int y_pitch =
+      (width * 2) % 32 ? (32 - (width * 2) % 32 + width * 2) : width * 2;
+  unsigned int y_height = height;
+
+  printf("Plane0 Pitch=\t\t%d\nPlane0 Height=\t\t%d\n", y_pitch, y_height);
+  output_buf_size = y_pitch * y_height;
+  output_buf = (char *)malloc(output_buf_size);
+  memset(output_buf, 0, output_buf_size);
+  printf("Total output raw frame size = %ld\n", output_buf_size);
+
+  fseek(input_fd, 0, SEEK_SET);
+  char *p_output_buf = output_buf;
+  unsigned int read_height = 0;
+  while (read_height < y_height) {
+    long line_read = fread(p_output_buf, 1, width * 2, input_fd);
+    if (line_read != width * 2) {
+      printf("Failed to read resource file\n");
+      return false;
+    }
+    p_output_buf += y_pitch;
+    read_height++;
+  }
+
+  return true;
+}
+
 bool generate_y8_output_buf() {
   unsigned int y_pitch = width % 64 ? (64 - width % 64 + width) : width;
   unsigned int y_height = height;
@@ -456,17 +484,19 @@ int main(int argc, char *argv[]) {
              !strcmp(output_format, "nv12_linear_cam_intel")) {
     ret = generate_nv12_output_buf();
   } else if (!strcmp(output_format, "ycbcr_422_sp")) {
-    ret = generate_nv16_output_buf();
+    ret = generate_yuv422sp_output_buf();
   } else if (!strcmp(output_format, "ycbcr_444_888")) {
     ret = generate_yuv444888_output_buf();
   } else if (!strcmp(output_format, "nv12_y_tiled_intel")) {
     ret = generate_nv12_ytiledintel_output_buf();
+  } else if (!strcmp(output_format, "ycbcr_422_i")) {
+    ret = generate_yuyv422_output_buf();
   }
 
   if (!ret) {
     if (!output_buf)
       free(output_buf);
-    printf("Failed to generate yv12 output buf");
+    printf("Failed to generate %s output buf", output_format);
     fclose(input_fd);
     fclose(output_fd);
     exit(EXIT_FAILURE);
