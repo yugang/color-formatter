@@ -47,16 +47,19 @@ unsigned int width = 0;
 unsigned int height = 0;
 
 static void print_help(void) {
-  printf("usage: colorformatter [--help] [--input] [--input-format]"
+  printf("Usage: colorformatter [--help] [--input] [--input-format]"
          "[--width] [--height] [--output] [--output-format]\n");
-  printf("\nSupported mapping of output format and input format as below:\n");
+  printf("\nSupported mapping of output format and input format as below:\n\n");
+  printf("\t%-32s%-32s\n", "Output Format", "Input Format");
+  printf("---------------------------------------------------------------------"
+         "\n");
   for (int i_output = 0; i_output < OUTPUT_FORMAT_NUM; i_output++) {
     if (strlen(output_input_mapping[i_output].output_format) != 0) {
-      printf("\t\"%s\":\t", output_input_mapping[i_output].output_format);
+      printf("\t%-32s", output_input_mapping[i_output].output_format);
       for (int i_input = 0; i_input < INPUT_FORMAT_NUM; i_input++) {
         if (strlen(output_input_mapping[i_output].input_format_list[i_input]) !=
             0) {
-          printf("\"%s\"\t",
+          printf("%-16s",
                  output_input_mapping[i_output].input_format_list[i_input]);
         }
       }
@@ -156,11 +159,10 @@ bool generate_raw16_output_buf() {
   unsigned int r_pitch = (width % 16 ? (16 - width % 16 + width) : width) * 2;
   unsigned int r_height = height;
 
-  printf("Pitch=\t\t%d\nHeight=\t\t%d\n", r_pitch, r_height);
+  printf("%-16s%-32d\n%-16s%-32d\n", "Pitch:", r_pitch, "Height:", r_height);
   output_buf_size = r_pitch * r_height;
   output_buf = (char *)malloc(output_buf_size);
   memset(output_buf, 0, output_buf_size);
-  printf("Total output raw frame size = %ld\n", output_buf_size);
 
   return true;
 }
@@ -170,11 +172,10 @@ bool generate_rawopaque_output_buf() {
       width * 2 % 32 ? (32 - width * 2 % 32 + width * 2) : width * 2;
   unsigned int r_height = height;
 
-  printf("Pitch=\t\t%d\nHeight=\t\t%d\n", r_pitch, r_height);
+  printf("%-16s%-32d\n%-16s%-32d\n", "Pitch:", r_pitch, "Height:", r_height);
   output_buf_size = r_pitch * r_height;
   output_buf = (char *)malloc(output_buf_size);
   memset(output_buf, 0, output_buf_size);
-  printf("Total output raw frame size = %ld\n", output_buf_size);
 
   return true;
 }
@@ -185,11 +186,10 @@ bool generate_rawblob_output_buf() {
                              : width * height;
   unsigned int r_height = 1;
 
-  printf("Pitch=\t\t%d\nHeight=\t\t%d\n", r_pitch, r_height);
+  printf("%-16s%-32d\n%-16s%-32d\n", "Pitch:", r_pitch, "Height:", r_height);
   output_buf_size = r_pitch * r_height;
   output_buf = (char *)malloc(output_buf_size);
   memset(output_buf, 0, output_buf_size);
-  printf("Total output raw frame size = %ld\n", output_buf_size);
 
   return true;
 }
@@ -203,11 +203,10 @@ bool generate_raw10_output_buf() {
   unsigned int r_pitch = (width * 10) / 8;
   unsigned int r_height = height;
 
-  printf("Pitch=\t\t%d\nHeight=\t\t%d\n", r_pitch, r_height);
+  printf("%-16s%-32d\n%-16s%-32d\n", "Pitch:", r_pitch, "Height:", r_height);
   output_buf_size = r_pitch * r_height;
   output_buf = (char *)malloc(output_buf_size);
   memset(output_buf, 0, output_buf_size);
-  printf("Total output raw frame size = %ld\n", output_buf_size);
 
   return true;
 }
@@ -221,11 +220,10 @@ bool generate_raw12_output_buf() {
   unsigned int r_pitch = (width * 12) / 8;
   unsigned int r_height = height;
 
-  printf("Pitch=\t\t%d\nHeight=\t\t%d\n", r_pitch, r_height);
+  printf("%-16s%-32d\n%-16s%-32d\n", "Pitch:", r_pitch, "Height:", r_height);
   output_buf_size = r_pitch * r_height;
   output_buf = (char *)malloc(output_buf_size);
   memset(output_buf, 0, output_buf_size);
-  printf("Total output raw frame size = %ld\n", output_buf_size);
 
   return true;
 }
@@ -236,13 +234,12 @@ bool generate_yuv422sp_output_buf() {
   unsigned int c_pitch = y_pitch;
   unsigned int c_height = y_height;
 
-  printf("Plane0 Pitch=\t\t%d\nPlane0 Height=\t\t%d\nPlane1 "
-         "Pitch=\t\t%d\nPlane1 Height=\t\t%d\n",
-         y_pitch, y_height, c_pitch, c_height);
+  printf("%-16s%-32d\n%-16s%-32d\n%-16s%-32d\n%-16s%-32d\n", "Pitch-y:",
+         y_pitch, "Height-y:", y_height, "Pitch-c:", c_pitch, "Height-c:",
+         c_height);
   output_buf_size = y_pitch * y_height + c_pitch * c_height;
   output_buf = (char *)malloc(output_buf_size);
   memset(output_buf, 0, output_buf_size);
-  printf("Total output raw frame size = %ld\n", output_buf_size);
 
   fseek(input_fd, 0, SEEK_SET);
   char *p_output_buf = output_buf;
@@ -280,13 +277,12 @@ bool generate_nv12_ytiledintel_output_buf() {
   ;
   unsigned int y_v_stride = height % 64 ? (64 - height % 64 + height) : height;
 
-  printf("Plane0 Pitch=\t\t%d\nPlane0 Stride=\t\t%d\nPlane1 "
-         "Pitch=\t\t%d\nPlane1 Stride=\t\t%d\n",
-         y_pitch, y_v_stride, c_pitch, c_v_stride);
+  printf("%-16s%-32d\n%-16s%-32d\n%-16s%-32d\n%-16s%-32d\n", "Pitch-y:",
+         y_pitch, "Stride-y-v:", y_v_stride, "Pitch-c:", c_pitch, "Stride-c-v:",
+         c_v_stride);
   output_buf_size = y_pitch * y_v_stride + c_pitch * c_v_stride;
   output_buf = (char *)malloc(output_buf_size);
   memset(output_buf, 0, output_buf_size);
-  printf("Total output raw frame size = %ld\n", output_buf_size);
 
   fseek(input_fd, 0, SEEK_SET);
   char *p_output_buf = output_buf;
@@ -318,19 +314,18 @@ bool generate_nv12_ytiledintel_output_buf() {
   return true;
 }
 
-bool generate_nv12_output_buf() {
+bool generate_nv1221_output_buf() {
   unsigned int y_pitch = width % 64 ? (64 - width % 64 + width) : width;
   unsigned int y_height = height;
   unsigned int c_pitch = y_pitch;
   unsigned int c_height = y_height / 2;
 
-  printf("Plane0 Pitch=\t\t%d\nPlane0 Height=\t\t%d\nPlane1 "
-         "Pitch=\t\t%d\nPlane1 Height=\t\t%d\n",
-         y_pitch, y_height, c_pitch, c_height);
+  printf("%-16s%-32d\n%-16s%-32d\n%-16s%-32d\n%-16s%-32d\n", "Pitch-y:",
+         y_pitch, "Height-y:", y_height, "Pitch-c:", c_pitch, "Height-c:",
+         c_height);
   output_buf_size = y_pitch * y_height + c_pitch * c_height;
   output_buf = (char *)malloc(output_buf_size);
   memset(output_buf, 0, output_buf_size);
-  printf("Total output raw frame size = %ld\n", output_buf_size);
 
   fseek(input_fd, 0, SEEK_SET);
   char *p_output_buf = output_buf;
@@ -364,13 +359,12 @@ bool generate_yuv444888_output_buf() {
   unsigned int c_pitch = y_pitch;
   unsigned int c_height = y_height;
 
-  printf("Plane0 Pitch=\t\t%d\nPlane0 Height=\t\t%d\nPlane1/2 "
-         "Pitch=\t\t%d\nPlane1/2 Height=\t%d\n",
-         y_pitch, y_height, c_pitch, c_height);
+  printf("%-16s%-32d\n%-16s%-32d\n%-16s%-32d\n%-16s%-32d\n", "Pitch-y:",
+         y_pitch, "Height-y:", y_height, "Pitch-c:", c_pitch, "Height-c:",
+         c_height);
   output_buf_size = y_pitch * y_height + c_pitch * c_height * 2;
   output_buf = (char *)malloc(output_buf_size);
   memset(output_buf, 0, output_buf_size);
-  printf("Total output raw frame size = %ld\n", output_buf_size);
 
   fseek(input_fd, 0, SEEK_SET);
   char *p_output_buf = output_buf;
@@ -416,13 +410,12 @@ bool generate_yv12_output_buf() {
       (width / 2) % 64 ? (64 - (width / 2) % 64 + width / 2) : width / 2;
   unsigned int c_height = height;
 
-  printf("Plane0 Pitch=\t\t%d\nPlane0 Height=\t\t%d\nPlane1/2 "
-         "Pitch=\t\t%d\nPlane1/2 Height=\t%d\n",
-         y_pitch, y_height, c_pitch, c_height / 2);
+  printf("%-16s%-32d\n%-16s%-32d\n%-16s%-32d\n%-16s%-32d\n", "Pitch-y:",
+         y_pitch, "Height-y:", y_height, "Pitch-c:", c_pitch, "Height-c:",
+         c_height);
   output_buf_size = y_pitch * y_height + c_pitch * c_height;
   output_buf = (char *)malloc(output_buf_size);
   memset(output_buf, 0, output_buf_size);
-  printf("Total output raw frame size = %ld\n", output_buf_size);
 
   fseek(input_fd, 0, SEEK_SET);
   char *p_output_buf = output_buf;
@@ -455,11 +448,10 @@ bool generate_yuyv422_output_buf() {
       (width * 2) % 32 ? (32 - (width * 2) % 32 + width * 2) : width * 2;
   unsigned int y_height = height;
 
-  printf("Plane0 Pitch=\t\t%d\nPlane0 Height=\t\t%d\n", y_pitch, y_height);
+  printf("%-16s%-32d\n%-16s%-32d\n", "Pitch:", y_pitch, "Height:", y_height);
   output_buf_size = y_pitch * y_height;
   output_buf = (char *)malloc(output_buf_size);
   memset(output_buf, 0, output_buf_size);
-  printf("Total output raw frame size = %ld\n", output_buf_size);
 
   fseek(input_fd, 0, SEEK_SET);
   char *p_output_buf = output_buf;
@@ -481,11 +473,10 @@ bool generate_y8_output_buf() {
   unsigned int y_pitch = width % 64 ? (64 - width % 64 + width) : width;
   unsigned int y_height = height;
 
-  printf("Plane0 Pitch=\t\t%d\nPlane0 Height=\t\t%d\n", y_pitch, y_height);
+  printf("%-16s%-32d\n%-16s%-32d\n", "Pitch:", y_pitch, "Height:", y_height);
   output_buf_size = y_pitch * y_height;
   output_buf = (char *)malloc(output_buf_size);
   memset(output_buf, 0, output_buf_size);
-  printf("Total output raw frame size = %ld\n", output_buf_size);
 
   fseek(input_fd, 0, SEEK_SET);
   char *p_output_buf = output_buf;
@@ -507,11 +498,10 @@ bool generate_y16_output_buf() {
   unsigned int y_pitch = (width % 32 ? (32 - width % 32 + width) : width) * 2;
   unsigned int y_height = height;
 
-  printf("Plane0 Pitch=\t\t%d\nPlane0 Height=\t\t%d\n", y_pitch, y_height);
+  printf("%-16s%-32d\n%-16s%-32d\n", "Pitch:", y_pitch, "Height:", y_height);
   output_buf_size = y_pitch * y_height;
   output_buf = (char *)malloc(output_buf_size);
   memset(output_buf, 0, output_buf_size);
-  printf("Total output raw frame size = %ld\n", output_buf_size);
 
   fseek(input_fd, 0, SEEK_SET);
   char *p_output_buf = output_buf;
@@ -530,8 +520,7 @@ bool generate_y16_output_buf() {
 }
 
 int main(int argc, char *argv[]) {
-  printf("\n=============================== Color Formatter "
-         "=============================\n");
+  printf("\n\n");
   parse_args(argc, argv);
   unsigned int valid_input_output_format = 0;
   for (int i_output = 0; i_output < OUTPUT_FORMAT_NUM; i_output++) {
@@ -588,7 +577,7 @@ int main(int argc, char *argv[]) {
   } else if (!strcmp(output_format, "ycbcr_420_888") ||
              !strcmp(output_format, "ycbcr_420_sp") ||
              !strcmp(output_format, "nv12_linear_cam_intel")) {
-    ret = generate_nv12_output_buf();
+    ret = generate_nv1221_output_buf();
   } else if (!strcmp(output_format, "ycbcr_422_sp")) {
     ret = generate_yuv422sp_output_buf();
   } else if (!strcmp(output_format, "ycbcr_444_888")) {
@@ -619,6 +608,7 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
+  printf("Total output size: %ld\n", output_buf_size);
   if (output_buf) {
     long write_size = fwrite(output_buf, 1, output_buf_size, output_fd);
     if (write_size != output_buf_size) {
@@ -629,6 +619,7 @@ int main(int argc, char *argv[]) {
       fclose(output_fd);
       exit(EXIT_FAILURE);
     }
+    printf("Generated test image file: %s\n", output_raw);
     free(output_buf);
   }
 
