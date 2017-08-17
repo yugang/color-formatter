@@ -9,8 +9,8 @@
 #include <unistd.h>
 #include <getopt.h>
 
-#define INPUT_FORMAT_NUM 10
-#define OUTPUT_FORMAT_NUM 10
+#define INPUT_FORMAT_NUM 20
+#define OUTPUT_FORMAT_NUM 20
 
 FILE *input_fd = NULL;
 FILE *output_fd = NULL;
@@ -32,6 +32,11 @@ struct output_input_formats output_input_mapping[OUTPUT_FORMAT_NUM] = {
     {"nv12_linear_cam_intel", {"nv12"}},
     {"nv12_y_tiled_intel", {"nv12"}},
     {"ycbcr_422_i", {"yuyv422"}},
+    {"raw10", {"*"}},
+    {"raw12", {"*"}},
+    {"raw16", {"*"}},
+    {"rawopaque", {"*"}},
+    {"rawblob", {"*"}},
     {"y16", {"yuv420p16le"}}};
 
 char input_raw[1024];
@@ -44,6 +49,20 @@ unsigned int height = 0;
 static void print_help(void) {
   printf("usage: colorformatter [--help] [--input] [--input-format]"
          "[--width] [--height] [--output] [--output-format]\n");
+  printf("\nSupported mapping of output format and input format as below:\n");
+  for (int i_output = 0; i_output < OUTPUT_FORMAT_NUM; i_output++) {
+    if (strlen(output_input_mapping[i_output].output_format) != 0) {
+      printf("\t\"%s\":\t", output_input_mapping[i_output].output_format);
+      for (int i_input = 0; i_input < INPUT_FORMAT_NUM; i_input++) {
+        if (strlen(output_input_mapping[i_output].input_format_list[i_input]) !=
+            0) {
+          printf("\"%s\"\t",
+                 output_input_mapping[i_output].input_format_list[i_input]);
+        }
+      }
+      printf("\n");
+    };
+  };
 }
 
 static void parse_args(int argc, char *argv[]) {
@@ -131,6 +150,84 @@ static void parse_args(int argc, char *argv[]) {
     fprintf(stderr, "usage error: trailing args\n");
     exit(EXIT_FAILURE);
   }
+}
+
+bool generate_raw16_output_buf() {
+  unsigned int r_pitch = (width % 16 ? (16 - width % 16 + width) : width) * 2;
+  unsigned int r_height = height;
+
+  printf("Pitch=\t\t%d\nHeight=\t\t%d\n", r_pitch, r_height);
+  output_buf_size = r_pitch * r_height;
+  output_buf = (char *)malloc(output_buf_size);
+  memset(output_buf, 0, output_buf_size);
+  printf("Total output raw frame size = %ld\n", output_buf_size);
+
+  return true;
+}
+
+bool generate_rawopaque_output_buf() {
+  unsigned int r_pitch =
+      width * 2 % 32 ? (32 - width * 2 % 32 + width * 2) : width * 2;
+  unsigned int r_height = height;
+
+  printf("Pitch=\t\t%d\nHeight=\t\t%d\n", r_pitch, r_height);
+  output_buf_size = r_pitch * r_height;
+  output_buf = (char *)malloc(output_buf_size);
+  memset(output_buf, 0, output_buf_size);
+  printf("Total output raw frame size = %ld\n", output_buf_size);
+
+  return true;
+}
+
+bool generate_rawblob_output_buf() {
+  unsigned int r_pitch = width * height % 64
+                             ? (64 - width * height % 64 + width * height)
+                             : width * height;
+  unsigned int r_height = 1;
+
+  printf("Pitch=\t\t%d\nHeight=\t\t%d\n", r_pitch, r_height);
+  output_buf_size = r_pitch * r_height;
+  output_buf = (char *)malloc(output_buf_size);
+  memset(output_buf, 0, output_buf_size);
+  printf("Total output raw frame size = %ld\n", output_buf_size);
+
+  return true;
+}
+
+bool generate_raw10_output_buf() {
+  if (width % 4 != 0) {
+    printf("Wrong width, must be multiple of 4 pixels\n");
+    return false;
+  }
+
+  unsigned int r_pitch = (width * 10) / 8;
+  unsigned int r_height = height;
+
+  printf("Pitch=\t\t%d\nHeight=\t\t%d\n", r_pitch, r_height);
+  output_buf_size = r_pitch * r_height;
+  output_buf = (char *)malloc(output_buf_size);
+  memset(output_buf, 0, output_buf_size);
+  printf("Total output raw frame size = %ld\n", output_buf_size);
+
+  return true;
+}
+
+bool generate_raw12_output_buf() {
+  if (width % 4 != 0) {
+    printf("Wrong width, must be multiple of 4 pixels\n");
+    return false;
+  }
+
+  unsigned int r_pitch = (width * 12) / 8;
+  unsigned int r_height = height;
+
+  printf("Pitch=\t\t%d\nHeight=\t\t%d\n", r_pitch, r_height);
+  output_buf_size = r_pitch * r_height;
+  output_buf = (char *)malloc(output_buf_size);
+  memset(output_buf, 0, output_buf_size);
+  printf("Total output raw frame size = %ld\n", output_buf_size);
+
+  return true;
 }
 
 bool generate_yuv422sp_output_buf() {
@@ -433,21 +530,28 @@ bool generate_y16_output_buf() {
 }
 
 int main(int argc, char *argv[]) {
-  printf("\n============================================================\n");
+  printf("\n=============================== Color Formatter "
+         "=============================\n");
   parse_args(argc, argv);
-  bool valid_input_output_format = false;
+  unsigned int valid_input_output_format = 0;
   for (int i_output = 0; i_output < OUTPUT_FORMAT_NUM; i_output++) {
     if (!strcmp(output_input_mapping[i_output].output_format, output_format)) {
       for (int i_input = 0; i_input < INPUT_FORMAT_NUM; i_input++) {
         if (!strcmp(output_input_mapping[i_output].input_format_list[i_input],
                     input_format)) {
-          valid_input_output_format = true;
+          valid_input_output_format = 1;
+          break;
+        } else if (!strcmp(output_input_mapping[i_output]
+                               .input_format_list[i_input],
+                           "*")) {
+          valid_input_output_format = 2;
+          break;
         }
       }
     };
   };
 
-  if (!valid_input_output_format) {
+  if (valid_input_output_format == 0) {
     printf(
         "Invalid formats mapping of between input_format and output_format\n");
     exit(EXIT_FAILURE);
@@ -460,15 +564,17 @@ int main(int argc, char *argv[]) {
   // check file existing
   // check output file existing
 
-  input_fd = fopen(input_raw, "r");
-  if (!input_fd) {
-    printf("Could not open the resource file");
-    exit(EXIT_FAILURE);
+  if (valid_input_output_format == 1) {
+    input_fd = fopen(input_raw, "r");
+    if (!input_fd) {
+      printf("Could not open the resource file");
+      exit(EXIT_FAILURE);
+    }
   }
 
   output_fd = fopen(output_raw, "w+");
   if (!output_fd) {
-    printf("Could not open the resource file");
+    printf("Could not create the test img file");
     exit(EXIT_FAILURE);
   }
 
@@ -491,13 +597,24 @@ int main(int argc, char *argv[]) {
     ret = generate_nv12_ytiledintel_output_buf();
   } else if (!strcmp(output_format, "ycbcr_422_i")) {
     ret = generate_yuyv422_output_buf();
+  } else if (!strcmp(output_format, "raw10")) {
+    ret = generate_raw10_output_buf();
+  } else if (!strcmp(output_format, "raw12")) {
+    ret = generate_raw12_output_buf();
+  } else if (!strcmp(output_format, "raw16")) {
+    ret = generate_raw16_output_buf();
+  } else if (!strcmp(output_format, "rawblob")) {
+    ret = generate_rawblob_output_buf();
+  } else if (!strcmp(output_format, "rawopaque")) {
+    ret = generate_rawopaque_output_buf();
   }
 
   if (!ret) {
     if (!output_buf)
       free(output_buf);
     printf("Failed to generate %s output buf", output_format);
-    fclose(input_fd);
+    if (input_fd)
+      fclose(input_fd);
     fclose(output_fd);
     exit(EXIT_FAILURE);
   }
@@ -507,14 +624,16 @@ int main(int argc, char *argv[]) {
     if (write_size != output_buf_size) {
       printf("Failed to write output file\n");
       free(output_buf);
-      fclose(input_fd);
+      if (input_fd)
+        fclose(input_fd);
       fclose(output_fd);
       exit(EXIT_FAILURE);
     }
     free(output_buf);
   }
 
-  fclose(input_fd);
+  if (input_fd)
+    fclose(input_fd);
   fclose(output_fd);
 
   exit(0);

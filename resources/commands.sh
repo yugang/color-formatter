@@ -18,3 +18,8 @@ ffmpeg -i ./bbb-splash.jpg -s 600x400 -vf scale=600:400 -pix_fmt yuv422p ./resou
 ../colorformatter --input ./resource.nv12.yuv --input-format nv12 --width 600 --height 400 --output ./test-img.nv12_y_tiled_intel --output-format nv12_y_tiled_intel
 ../colorformatter --input ./resource.yuyv422.yuv --input-format yuyv422 --width 600 --height 400 --output ./test-img.ycbcr_422_i --output-format ycbcr_422_i
 ../colorformatter --input ./resource.yuv422p.yuv --input-format yuv422p --width 600 --height 400 --output ./test-img.ycbcr_422_sp --output-format ycbcr_422_sp
+../colorformatter --width 600 --height 400 --output ./test-img.raw10 --output-format raw10
+../colorformatter --width 600 --height 400 --output ./test-img.raw12 --output-format raw12
+../colorformatter --width 600 --height 400 --output ./test-img.raw16 --output-format raw16
+../colorformatter --width 600 --height 400 --output ./test-img.rawblob --output-format rawblob
+../colorformatter --width 600 --height 400 --output ./test-img.rawopaque --output-format rawopaque
