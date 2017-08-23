@@ -25,14 +25,14 @@ struct output_input_formats {
 struct output_input_formats output_input_mapping[OUTPUT_FORMAT_NUM] = {
     {"yv12", {"yuv420p"}},
     {"y8", {"yuv420p"}},
-    {"ycbcr_420_888", {"nv12"}},
-    {"ycbcr_422_sp", {"nv16"}},
-    {"ycrcb_420_sp", {"nv21"}},
     {"ycbcr_444_888", {"yuv444p"}},
+    {"ycbcr_422_i", {"yuyv422"}},
+    {"ycbcr_422_sp", {"yuv422p"}},
+    {"ycbcr_422_888", {"yuv422p"}},
+    {"ycbcr_420_888", {"nv12"}},
+    {"ycrcb_420_sp", {"nv21"}},
     {"nv12_linear_cam_intel", {"nv12"}},
     {"nv12_y_tiled_intel", {"nv12"}},
-    {"ycbcr_422_i", {"yuyv422"}},
-    {"ycbcr_422_888", {"yuv422p"}},
     {"raw10", {"*"}},
     {"raw12", {"*"}},
     {"raw16", {"*"}},
@@ -264,6 +264,58 @@ bool generate_yuv422_output_buf() {
     }
     p_output_buf += c_pitch;
     read_height++;
+  }
+  return true;
+}
+
+bool generate_yuv422sp_output_buf() {
+  unsigned int y_pitch = width;
+  unsigned int y_height = height;
+  unsigned int c_pitch = y_pitch;
+  unsigned int c_height = y_height;
+
+  printf("%-16s%-32d\n%-16s%-32d\n%-16s%-32d\n%-16s%-32d\n", "Pitch-y:",
+         y_pitch, "Height-y:", y_height, "Pitch-c:", c_pitch, "Height-c:",
+         c_height);
+  output_buf_size = y_pitch * y_height + c_pitch * c_height;
+  output_buf = (char *)malloc(output_buf_size);
+  memset(output_buf, 0, output_buf_size);
+
+  fseek(input_fd, 0, SEEK_SET);
+  char *p_output_buf = output_buf;
+  unsigned int read_height = 0;
+  while (read_height < y_height) {
+    long line_read = fread(p_output_buf, 1, width, input_fd);
+    if (line_read != width) {
+      printf("Failed to read resource file\n");
+      return false;
+    }
+    p_output_buf += y_pitch;
+    read_height++;
+  }
+
+  unsigned int read_pix = 0;
+  while (read_pix < c_height * c_pitch / 2) {
+    long u_pix_read = fread(p_output_buf, 1, 1, input_fd);
+    if (u_pix_read != 1) {
+      printf("Failed to read resource file\n");
+      return false;
+    }
+    p_output_buf += 2;
+    read_pix++;
+  }
+
+  fseek(input_fd, y_pitch * y_height + c_height * c_pitch / 2, SEEK_SET);
+  p_output_buf = output_buf + y_pitch * y_height + 1;
+  read_pix = 0;
+  while (read_pix < c_height * c_pitch / 2) {
+    long v_pix_read = fread(p_output_buf, 1, 1, input_fd);
+    if (v_pix_read != 1) {
+      printf("Failed to read resource file\n");
+      return false;
+    }
+    p_output_buf += 2;
+    read_pix++;
   }
   return true;
 }
@@ -582,9 +634,7 @@ int main(int argc, char *argv[]) {
   } else if (!strcmp(output_format, "ycbcr_422_888")) {
     ret = generate_yuv422_output_buf();
   } else if (!strcmp(output_format, "ycbcr_422_sp")) {
-    ret = generate_yuv422_output_buf(); // may need new function to read the
-                                        // 422_sp from yuv 422 888 because of
-                                        // ffmpeg's bug
+    ret = generate_yuv422sp_output_buf();
   } else if (!strcmp(output_format, "ycbcr_444_888")) {
     ret = generate_yuv444888_output_buf();
   } else if (!strcmp(output_format, "nv12_y_tiled_intel")) {
