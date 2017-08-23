@@ -26,12 +26,13 @@ struct output_input_formats output_input_mapping[OUTPUT_FORMAT_NUM] = {
     {"yv12", {"yuv420p"}},
     {"y8", {"yuv420p"}},
     {"ycbcr_420_888", {"nv12"}},
-    {"ycbcr_422_sp", {"nv16", "yuv422p"}},
-    {"ycbcr_420_sp", {"nv21"}},
+    {"ycbcr_422_sp", {"nv16"}},
+    {"ycrcb_420_sp", {"nv21"}},
     {"ycbcr_444_888", {"yuv444p"}},
     {"nv12_linear_cam_intel", {"nv12"}},
     {"nv12_y_tiled_intel", {"nv12"}},
     {"ycbcr_422_i", {"yuyv422"}},
+    {"ycbcr_422_888", {"yuv422p"}},
     {"raw10", {"*"}},
     {"raw12", {"*"}},
     {"raw16", {"*"}},
@@ -228,7 +229,7 @@ bool generate_raw12_output_buf() {
   return true;
 }
 
-bool generate_yuv422sp_output_buf() {
+bool generate_yuv422_output_buf() {
   unsigned int y_pitch = width;
   unsigned int y_height = height;
   unsigned int c_pitch = y_pitch;
@@ -575,11 +576,15 @@ int main(int argc, char *argv[]) {
   } else if (!strcmp(output_format, "y16")) {
     ret = generate_y16_output_buf();
   } else if (!strcmp(output_format, "ycbcr_420_888") ||
-             !strcmp(output_format, "ycbcr_420_sp") ||
+             !strcmp(output_format, "ycrcb_420_sp") ||
              !strcmp(output_format, "nv12_linear_cam_intel")) {
     ret = generate_nv1221_output_buf();
+  } else if (!strcmp(output_format, "ycbcr_422_888")) {
+    ret = generate_yuv422_output_buf();
   } else if (!strcmp(output_format, "ycbcr_422_sp")) {
-    ret = generate_yuv422sp_output_buf();
+    ret = generate_yuv422_output_buf(); // may need new function to read the
+                                        // 422_sp from yuv 422 888 because of
+                                        // ffmpeg's bug
   } else if (!strcmp(output_format, "ycbcr_444_888")) {
     ret = generate_yuv444888_output_buf();
   } else if (!strcmp(output_format, "nv12_y_tiled_intel")) {
